@@ -1,0 +1,20 @@
+# app:
+#   build: .
+#   command: python manage.py runserver --host 0.0.0.0
+#   volumes:
+#     - .:/var/www/abell
+#   ports:
+#     - "5000:5000"
+#   links:
+#     - db
+#   env_file: .env
+
+db:
+  image: mongo:latest
+  ports:
+    - "27017:27017"
+  command: --auth
+  volumes:
+    - .:/tmp/abell
+
+# sudo docker exec -it abell_db_1 /bin/sh -c "mongo < /tmp/abell/mongoprovision.js"
