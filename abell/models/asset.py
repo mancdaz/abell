@@ -1,18 +1,15 @@
 # from repoze.lru import lru_cache
 import model_tools
-import datetime
 
 
 class AbellAsset(object):
 
     def __init__(self, asset_type, asset_info, abell_id, property_dict=None,
-                user_level='user'):
+                 user_level='user'):
         self.asset_type = str(asset_type)
         self.abell_id = str(abell_id)
         self.asset_info = model_tools.item_stringify(asset_info)
         self.fields = {}
-        # if property_dict:
-            # self.add_property_dict(property_dict)
 
     def __getattr__(self, attr):
         if type(attr) == str:

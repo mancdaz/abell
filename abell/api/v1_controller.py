@@ -1,12 +1,11 @@
 from functools import wraps
-from flask import request, Response, jsonify, g, session
-
-from ..api import api, internal
+from flask import request
+from ..api import api
 from abell.database import AbellDb
 from abell.models import AbellAsset
 from responses import abell_error, abell_success
 
-import json
+# import json
 
 ABELLDB = AbellDb()
 
@@ -15,6 +14,14 @@ FLAGS = {'create_keys': {'action': ['create'],
 
 
 def validate_json(f):
+    """Validate json input.
+
+    Attempts to extract JSON from user request.
+    Args:
+        Request function (wrapped)
+    Returns:
+        Abell error if JSON is not formatted correctly
+    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
@@ -27,6 +34,16 @@ def validate_json(f):
 
 
 def validate_data(action, data, fields):
+    """General Field Validator
+
+    Ensures the required fields for a certain action are provided by the user.
+    Args:
+        action (str): Action the user is attempting
+        data (dict): User provided data
+        fields (list): List of required fields
+    Returns:
+        Response dict: {'success': bool, 'error': None | abell_error}
+    """
     response_dict = {'success': False,
                      'error': None}
     for field in fields:
@@ -41,6 +58,15 @@ def validate_data(action, data, fields):
 
 
 def update_asset_type(data_keys, abell_asset_info):
+    """Add new fields to an asset type
+
+    Adds new fields to an abell asset type.
+    Args:
+        data_keys (list): List of user provided keys for updating
+        abell_asset_info (dict): Abell asset information dict
+    Returns:
+        Response dict: {'success': bool, 'error': None | abell_error}
+    """
     response_dict = {'success': True,
                      'error': None,
                      'message': None}
@@ -61,6 +87,15 @@ def update_asset_type(data_keys, abell_asset_info):
 
 
 def create_new_asset(asset_type, asset_data, asset_info=False):
+    """Create a new asset in abell
+
+    Args:
+        asset_type (str): abell asset type
+        asset_data (dict): user provided asset data
+        asset_info (dict): Abell asset information dict
+    Returns:
+        Response dict: Database response dict
+    """
     # TODO(mike) Grab asset info if none
     abell_id = asset_data.get('abell_id')
     new_asset = AbellAsset(asset_type, asset_info, abell_id)
@@ -76,7 +111,7 @@ def create_new_asset(asset_type, asset_data, asset_info=False):
 def create_one_asset():
     # Check if new keys are to be added to data type
     data = dict(request.get_json())
-    flags = dict(request.args)
+    # flags = dict(request.args)
     response_details = {}
 
     # Ensure Data has required options

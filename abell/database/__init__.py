@@ -10,10 +10,9 @@ class AbellDb(object):
         return asset_info
 
     def update_managed_vars(self, asset_type, new_vars):
-        resp = mongo.db.assetinfo.update({'type': asset_type},
-                                         {'$push': {'managed_keys':
-                                          {'$each': new_vars}}})
-        # print resp
+        mongo.db.assetinfo.update({'type': asset_type},
+                                  {'$push': {'managed_keys':
+                                   {'$each': new_vars}}})
 
     def add_new_key(self, asset_type, new_vars):
         # adds new field to all assets of a given type
@@ -34,6 +33,8 @@ class AbellDb(object):
             response_dict.update(
                 {'error': 500,
                  'message': 'Unknown db error, contact admin'})
+            # (TODO) log error
+            print e
             return response_dict
 
     def add_new_asset(self, payload):

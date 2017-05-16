@@ -3,11 +3,8 @@ from flask_script import Server, Shell, Manager
 
 
 def _make_context():
-    return dict(
-            app=create_app(config.dev_config),
-            # db=db,
-            # populate_db=populate_db
-            )
+    return dict(app=create_app(config.dev_config))
+
 
 app = create_app(config=config.dev_config)
 
