@@ -57,6 +57,40 @@ def validate_data(action, data, fields):
     return response_dict
 
 
+def get_query_params(request_args):
+    response_dict = {'success': False,
+                     'error': None,
+                     'params': None,
+                     'specified_keys': None,
+                     'distinct_key': None}
+    params = dict()
+    specified_keys = {'_id': 0}
+    try:
+        for k, v in request_args.iteritems():
+            if k == 'distinct_key':
+                response_dict['distinct_key'] = v
+            elif k == 'specified_keys':
+                keys = v.replace('[', '').replace(']', '').split(',')
+                for key in keys:
+                    specified_keys.update({key.strip(): 1})
+            elif v[0] == '!':
+                params[k.lower()] = {'$ne': v[1:]}
+            elif v[0] == '/':
+                params[k.lower()] = {'$regex': v[1:]}
+            else:
+                params[k.lower()] = v
+
+        response_dict.update({'success': True, 'params': params,
+                             'specified_keys': specified_keys})
+        return response_dict
+
+    except Exception:
+        error_response = abell_error(400,
+                                     'Error in filter params')
+        response_dict['error'] = error_response
+        return response_dict
+
+
 def update_asset_type(data_keys, abell_asset_info):
     """Add new fields to an asset type
 
@@ -103,6 +137,121 @@ def create_new_asset(asset_type, asset_data, asset_info=False):
     payload = new_asset.stringified_attributes()
     db_response = ABELLDB.add_new_asset(payload)
     return db_response
+
+
+@api.route('/v1/find', methods=['GET'])
+# todo auth
+def find_assets():
+    response_details = {}
+    query_params = get_query_params(request.args)
+
+    if not query_params.get('success'):
+        return query_params['error']
+    else:
+        params = query_params.get('params')
+        specified_keys = query_params.get('specified_keys')
+        response_details.update({'query_params': params})
+
+    asset_type = params.get('type')
+    # TODO(mike) Figure out Cache for allowed asset types
+    # if object_type is not None and object_type not in ALLOWED_COLLECTIONS:
+    # error_response = galaxy_error(404,
+    #   'Asset type is not found',
+    #   type=object_type)
+    # return error_response
+    if asset_type:
+        db_result = ABELLDB.asset_find(asset_type,
+                                       params,
+                                       specified_keys=specified_keys)
+        if not db_result.get('success'):
+            # DB Error
+            return abell_error(db_result.get('error'),
+                               db_result.get('message'),
+                               **response_details)
+        else:
+            # Successful find!
+            payload = list(db_result.get('result'))
+            return abell_success(payload=payload,
+                                 **response_details)
+
+    return abell_error(500,
+                       'Unknown find error',
+                       submission=query_params)
+
+
+@api.route('/v1/count', methods=['GET'])
+# todo auth
+def count_assets():
+    response_details = {}
+    query_params = get_query_params(request.args)
+    if not query_params.get('success'):
+        return query_params['error']
+    else:
+        params = query_params.get('params')
+        response_details.update({'query_params': params})
+    asset_type = params.get('type')
+    # TODO(mike) Figure out Cache for allowed asset types
+    # if object_type is not None and object_type not in ALLOWED_COLLECTIONS:
+    # error_response = galaxy_error(404,
+    #   'Asset type is not found',
+    #   type=object_type)
+    # return error_response
+    if asset_type:
+        db_result = ABELLDB.asset_count(asset_type,
+                                        params)
+        if not db_result.get('success'):
+            # DB Error
+            return abell_error(db_result.get('error'),
+                               db_result.get('message'),
+                               **response_details)
+        else:
+            # Successful count!
+            payload = {'count': db_result.get('result')}
+            return abell_success(payload=payload,
+                                 **response_details)
+
+    return abell_error(500,
+                       'Unknown count error',
+                       submission=query_params)
+
+
+@api.route('/v1/distinct', methods=['GET'])
+# todo auth
+def distinct_assets():
+    response_details = {}
+    query_params = get_query_params(request.args)
+    if not query_params.get('success'):
+        return query_params['error']
+    else:
+        params = query_params.get('params')
+        distinct_key = query_params.get('distinct_key')
+        response_details.update({'query_params': params,
+                                 'distinct_key': distinct_key})
+    asset_type = params.get('type')
+    # TODO(mike) Figure out Cache for allowed asset types
+    # if object_type is not None and object_type not in ALLOWED_COLLECTIONS:
+    # error_response = galaxy_error(404,
+    #   'Asset type is not found',
+    #   type=object_type)
+    # return error_response
+    if asset_type:
+        db_result = ABELLDB.asset_distinct(asset_type,
+                                           params,
+                                           str(distinct_key))
+        if not db_result.get('success'):
+            # DB Error
+            return abell_error(db_result.get('error'),
+                               db_result.get('message'),
+                               **response_details)
+        else:
+            # Successful distinct call!
+            payload = db_result.get('result')
+            return abell_success(payload=payload,
+                                 **response_details)
+
+    return abell_error(500,
+                       'Unknown distinct error',
+                       submission=query_params)
 
 
 @api.route('/v1/create', methods=['POST'])

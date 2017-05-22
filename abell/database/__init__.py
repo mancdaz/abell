@@ -66,3 +66,64 @@ class AbellDb(object):
                     {'error': 500,
                      'message': 'Unknown db, contact admin'})
             return response_dict
+
+    def asset_find(self, asset_type, params, specified_keys=None):
+        response_dict = {'success': False,
+                         'error': None,
+                         'message': None,
+                         'result': None}
+        try:
+            if specified_keys:
+                result = mongo.db[asset_type].find(
+                            params,
+                            specified_keys).batch_size(50)
+                response_dict.update(
+                    {'success': True,
+                     'result': result})
+            else:
+                result = mongo.db[asset_type].find(params).batch_size(50)
+                response_dict.update(
+                    {'success': True,
+                     'result': result})
+        except Exception as e:
+            print e
+            response_dict.update(
+                {'error': 500,
+                 'message': 'DB Find Error'})
+        return response_dict
+
+    def asset_count(self, asset_type, params):
+        response_dict = {'success': False,
+                         'error': None,
+                         'message': None,
+                         'result': None}
+        try:
+            result = mongo.db[asset_type].find(
+                        params).count()
+            response_dict.update(
+                {'success': True,
+                 'result': result})
+        except Exception as e:
+            print e
+            response_dict.update(
+                {'error': 500,
+                 'message': 'DB Count Error'})
+        return response_dict
+
+    def asset_distinct(self, asset_type, params, distinct_attribute):
+        response_dict = {'success': False,
+                         'error': None,
+                         'message': None,
+                         'result': None}
+        try:
+            result = mongo.db[asset_type].find(
+                        params).distinct(distinct_attribute)
+            response_dict.update(
+                {'success': True,
+                 'result': result})
+        except Exception as e:
+            print e
+            response_dict.update(
+                {'error': 500,
+                 'message': 'DB distinct Error'})
+        return response_dict

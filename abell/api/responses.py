@@ -3,9 +3,12 @@ from flask import Response
 
 
 def abell_success(*args, **kwargs):
-    success = {"code": 200,
-               "payload": args,
-               "details": kwargs}
+    success = {"code": 200}
+    payload = kwargs.get('payload', None)
+    kwargs.pop('payload', None)
+    details = kwargs
+    success.update({'payload': payload,
+                    'details': details})
     response = Response(json.dumps(success),
                         status=200,
                         mimetype="application/json")
