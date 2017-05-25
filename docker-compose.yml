@@ -1,17 +1,19 @@
 version: '2'
 
 services:
-  app:
-    build: .
-    command: python manage.py runserver --host 0.0.0.0
-    volumes:
-      - .:/var/www/abell
-    ports:
-      - "5000:5000"
-    # links:
-    #   - db
-    network_mode: "host"
-    env_file: .env
+  # app:
+  #   build: .
+  #   command: python -u manage.py runserver --host 0.0.0.0
+  #   volumes:
+  #     - .:/var/www/abell
+  #   ports:
+  #     - "5000:5000"
+  #   # links:
+  #   #   - db
+  #   network_mode: "host"
+  #   environment:
+  #     - PYTHONUNBUFFERED=0
+  #   # env_file: .env
 
   db:
     image: mongo:latest

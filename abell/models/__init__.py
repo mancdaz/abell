@@ -1,1 +1,1 @@
-from asset import AbellAsset  # noqa
+from .asset import AbellAsset  # noqa

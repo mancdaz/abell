@@ -1,13 +1,10 @@
 from functools import wraps
 from flask import request
 from ..api import api
-from abell.database import AbellDb
-from abell.models import AbellAsset
-from responses import abell_error, abell_success
+from abell.models import asset
+from .responses import abell_error, abell_success
 
 # import json
-
-ABELLDB = AbellDb()
 
 FLAGS = {'create_keys': {'action': ['create'],
                          'auth': ['admin']}}
@@ -52,7 +49,7 @@ def validate_data(action, data, fields):
                                                  '%s payload does not contain '
                                                  'required fields %s'
                                                  % (action, str(fields)))
-
+            return response_dict
     response_dict.update({'success': True})
     return response_dict
 
@@ -66,7 +63,7 @@ def get_query_params(request_args):
     params = dict()
     specified_keys = {'_id': 0}
     try:
-        for k, v in request_args.iteritems():
+        for k, v in request_args.items():
             if k == 'distinct_key':
                 response_dict['distinct_key'] = v
             elif k == 'specified_keys':
@@ -91,54 +88,6 @@ def get_query_params(request_args):
         return response_dict
 
 
-def update_asset_type(data_keys, abell_asset_info):
-    """Add new fields to an asset type
-
-    Adds new fields to an abell asset type.
-    Args:
-        data_keys (list): List of user provided keys for updating
-        abell_asset_info (dict): Abell asset information dict
-    Returns:
-        Response dict: {'success': bool, 'error': None | abell_error}
-    """
-    response_dict = {'success': True,
-                     'error': None,
-                     'message': None}
-    asset_type = abell_asset_info.get('type')
-    given_keys = set(data_keys)
-    validate_keys = set(['owner', 'cloud', 'type', 'abell_id'])
-    potential_keys = given_keys.difference(validate_keys)
-    existing_keys = set(abell_asset_info.get('managed_keys') +
-                        abell_asset_info.get('unmanaged_keys'))
-
-    # TODO(mike) check if system keys (may need to rethink)
-    new_keys = potential_keys.difference(existing_keys)
-    if new_keys:
-        ABELLDB.update_managed_vars(asset_type, list(new_keys))
-        db_resp = ABELLDB.add_new_key(asset_type, list(new_keys))
-        return db_resp
-    return response_dict
-
-
-def create_new_asset(asset_type, asset_data, asset_info=False):
-    """Create a new asset in abell
-
-    Args:
-        asset_type (str): abell asset type
-        asset_data (dict): user provided asset data
-        asset_info (dict): Abell asset information dict
-    Returns:
-        Response dict: Database response dict
-    """
-    # TODO(mike) Grab asset info if none
-    abell_id = asset_data.get('abell_id')
-    new_asset = AbellAsset(asset_type, asset_info, abell_id)
-    new_asset.create_asset(asset_data)
-    payload = new_asset.stringified_attributes()
-    db_response = ABELLDB.add_new_asset(payload)
-    return db_response
-
-
 @api.route('/v1/find', methods=['GET'])
 # todo auth
 def find_assets():
@@ -151,7 +100,6 @@ def find_assets():
         params = query_params.get('params')
         specified_keys = query_params.get('specified_keys')
         response_details.update({'query_params': params})
-
     asset_type = params.get('type')
     # TODO(mike) Figure out Cache for allowed asset types
     # if object_type is not None and object_type not in ALLOWED_COLLECTIONS:
@@ -160,9 +108,9 @@ def find_assets():
     #   type=object_type)
     # return error_response
     if asset_type:
-        db_result = ABELLDB.asset_find(asset_type,
-                                       params,
-                                       specified_keys=specified_keys)
+        db_result = asset.asset_find(asset_type,
+                                           params,
+                                           specified_keys=specified_keys)
         if not db_result.get('success'):
             # DB Error
             return abell_error(db_result.get('error'),
@@ -197,8 +145,8 @@ def count_assets():
     #   type=object_type)
     # return error_response
     if asset_type:
-        db_result = ABELLDB.asset_count(asset_type,
-                                        params)
+        db_result = asset.asset_count(asset_type,
+                                            params)
         if not db_result.get('success'):
             # DB Error
             return abell_error(db_result.get('error'),
@@ -217,7 +165,7 @@ def count_assets():
 
 @api.route('/v1/distinct', methods=['GET'])
 # todo auth
-def distinct_assets():
+def distinct_fields():
     response_details = {}
     query_params = get_query_params(request.args)
     if not query_params.get('success'):
@@ -235,9 +183,9 @@ def distinct_assets():
     #   type=object_type)
     # return error_response
     if asset_type:
-        db_result = ABELLDB.asset_distinct(asset_type,
-                                           params,
-                                           str(distinct_key))
+        db_result = asset.distinct_asset_fields(asset_type,
+                                                      params,
+                                                      distinct_key)
         if not db_result.get('success'):
             # DB Error
             return abell_error(db_result.get('error'),
@@ -252,6 +200,39 @@ def distinct_assets():
     return abell_error(500,
                        'Unknown distinct error',
                        submission=query_params)
+
+
+@api.route('/v1/update', methods=['PUT'])
+@validate_json
+# todo auth
+def update_assets():
+    data = dict(request.get_json())
+    update_multiple = False
+    validate_response = validate_data('update', data, ['update', 'filter'])
+    if not validate_response.get('success'):
+        return validate_response.get('error')
+    # Get multi update flag AUTH AUTH AUHT
+    if request.args.get('update_multiple_assets', 'false').lower():
+        update_multiple = True
+    asset_filter = data.get('filter')
+    asset_update = data.get('update')
+    asset_type = asset_filter.get('type')
+    # TODO(mike) Figure out Cache for allowed asset types
+    # if object_type is not None and object_type not in ALLOWED_COLLECTIONS:
+    # error_response = galaxy_error(404,
+    #   'Asset type is not found',
+    #   type=object_type)
+    # return error_response
+    if update_multiple:
+        test = asset.update_asset_values(asset_type,
+                                               asset_filter,
+                                               asset_update,
+                                               auth_level='admin',
+                                               multi=update_multiple)
+        #update many
+
+
+    return abell_success(**data)
 
 
 @api.route('/v1/create', methods=['POST'])
@@ -271,7 +252,7 @@ def create_one_asset():
 
     # Ensure asset type exists
     given_asset_type = data.get('type')
-    abell_asset_info = ABELLDB.get_asset_info(given_asset_type)
+    abell_asset_info = asset.get_asset_type(given_asset_type)
     if not abell_asset_info:
         response_details.update({'submitted_data': data})
         return abell_error(400,
@@ -282,16 +263,18 @@ def create_one_asset():
 
     # Create new keys if create_keys flag is set
     if request.args.get('create_keys', 'false').lower() == 'true':
-        new_key_resp = update_asset_type(data.keys(), abell_asset_info)
+        new_key_resp = asset.update_asset_type(data.keys(),
+                                                     abell_asset_info)
         if not new_key_resp.get('success'):
             return abell_error(new_key_resp.get('error'),
                                new_key_resp.get('message'))
         new_keys_added = new_key_resp.get('message')
         response_details.update({'new_keys_added': new_keys_added})
-        abell_asset_info = ABELLDB.get_asset_info(given_asset_type)
+        abell_asset_info = asset.get_asset_type(given_asset_type)
 
     # Create new asset
-    db_status = create_new_asset(given_asset_type, data, abell_asset_info)
+    db_status = asset.create_new_asset(given_asset_type,
+                                             data, abell_asset_info)
     if not db_status.get('success'):
         return abell_error(db_status.get('error'),
                            db_status.get('message'),

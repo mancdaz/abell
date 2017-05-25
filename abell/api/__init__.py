@@ -2,4 +2,4 @@ from flask import Blueprint
 
 api = Blueprint('api', __name__)
 
-import v1_controller  # noqa
+from abell.api import v1_controller  # noqa

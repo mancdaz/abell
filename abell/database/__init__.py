@@ -11,7 +11,7 @@ class AbellDb(object):
 
     def update_managed_vars(self, asset_type, new_vars):
         mongo.db.assetinfo.update({'type': asset_type},
-                                  {'$push': {'managed_keys':
+                                  {'$addToSet': {'managed_keys':
                                    {'$each': new_vars}}})
 
     def add_new_key(self, asset_type, new_vars):
@@ -34,7 +34,7 @@ class AbellDb(object):
                 {'error': 500,
                  'message': 'Unknown db error, contact admin'})
             # (TODO) log error
-            print e
+            print(e)
             return response_dict
 
     def add_new_asset(self, payload):
@@ -67,7 +67,7 @@ class AbellDb(object):
                      'message': 'Unknown db, contact admin'})
             return response_dict
 
-    def asset_find(self, asset_type, params, specified_keys=None):
+    def asset_find(self, asset_type, asset_filter, specified_keys=None):
         response_dict = {'success': False,
                          'error': None,
                          'message': None,
@@ -75,55 +75,68 @@ class AbellDb(object):
         try:
             if specified_keys:
                 result = mongo.db[asset_type].find(
-                            params,
+                            asset_filter,
                             specified_keys).batch_size(50)
                 response_dict.update(
                     {'success': True,
                      'result': result})
             else:
-                result = mongo.db[asset_type].find(params).batch_size(50)
+                result = mongo.db[asset_type].find(asset_filter).batch_size(50)
                 response_dict.update(
                     {'success': True,
                      'result': result})
         except Exception as e:
-            print e
+            print(e)
             response_dict.update(
                 {'error': 500,
                  'message': 'DB Find Error'})
         return response_dict
 
-    def asset_count(self, asset_type, params):
+    def asset_count(self, asset_type, asset_filter):
         response_dict = {'success': False,
                          'error': None,
                          'message': None,
                          'result': None}
         try:
             result = mongo.db[asset_type].find(
-                        params).count()
+                        asset_filter).count()
             response_dict.update(
                 {'success': True,
                  'result': result})
         except Exception as e:
-            print e
+            print(e)
             response_dict.update(
                 {'error': 500,
                  'message': 'DB Count Error'})
         return response_dict
 
-    def asset_distinct(self, asset_type, params, distinct_attribute):
+    def asset_distinct(self, asset_type, asset_filter, distinct_attribute):
         response_dict = {'success': False,
                          'error': None,
                          'message': None,
                          'result': None}
         try:
             result = mongo.db[asset_type].find(
-                        params).distinct(distinct_attribute)
+                        asset_filter).distinct(distinct_attribute)
             response_dict.update(
                 {'success': True,
                  'result': result})
         except Exception as e:
-            print e
+            print(e)
             response_dict.update(
                 {'error': 500,
                  'message': 'DB distinct Error'})
         return response_dict
+
+    def update_asset(self, asset_type, asset_filter, update_dict):
+        result = 0
+        try:
+            print(update_dict)
+            result = mongo.db[asset_type].update_many(
+                        asset_filter,
+                        {'$set': update_dict})
+            print(result.raw_result)
+        except Exception as e:
+            print(e)
+
+        return result
