@@ -63,7 +63,8 @@ def update_asset_values(asset_type, asset_filter, user_update_dict,
     response_dict = {'success': False,
                      'error': None,
                      'message': None,
-                     'updated_keys': {}}
+                     'updated_keys': {},
+                     'updated_asset_ids': []}
     # TEMP Auth check, this will Change
     if auth_level is 'admin':
         valid_keys = set(asset_type_info.get('managed_keys') +
@@ -77,7 +78,28 @@ def update_asset_values(asset_type, asset_filter, user_update_dict,
             if k.split('.')[0] in valid_keys:
                 response_dict['updated_keys'][k] = v
     payload = model_tools.item_stringify(response_dict['updated_keys'])
-    test = ABELLDB.update_asset(asset_type, asset_filter, payload)
+
+    # Get abell ids of matching assets
+    assets_to_update = asset_find(
+                        asset_type,
+                        asset_filter,
+                        specified_keys={'_id': 0, 'abell_id': 1})
+    assets_to_update = assets_to_update.get('result')
+    if not multi:
+        if len(assets_to_update) is not 1:
+            response_dict.update({'error': 400,
+                                  'message': 'The filter did not return '
+                                             'a single asset'})
+            return response_dict
+
+    db_response = ABELLDB.update_asset(asset_type, asset_filter, payload)
+    if db_response.get('success'):
+        for a in assets_to_update:
+            asset_id = a.get('abell_id')
+            response_dict['updated_asset_ids'].append(asset_id)
+        response_dict.update({'success': True,
+                              'message': db_response.get('result')})
+    # TODO Probably convert to a bulk find and update call
     # TODO Log updated documents
     return response_dict
 

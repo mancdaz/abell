@@ -109,8 +109,8 @@ def find_assets():
     # return error_response
     if asset_type:
         db_result = asset.asset_find(asset_type,
-                                           params,
-                                           specified_keys=specified_keys)
+                                     params,
+                                     specified_keys=specified_keys)
         if not db_result.get('success'):
             # DB Error
             return abell_error(db_result.get('error'),
@@ -118,7 +118,7 @@ def find_assets():
                                **response_details)
         else:
             # Successful find!
-            payload = list(db_result.get('result'))
+            payload = db_result.get('result')
             return abell_success(payload=payload,
                                  **response_details)
 
@@ -146,7 +146,7 @@ def count_assets():
     # return error_response
     if asset_type:
         db_result = asset.asset_count(asset_type,
-                                            params)
+                                      params)
         if not db_result.get('success'):
             # DB Error
             return abell_error(db_result.get('error'),
@@ -184,8 +184,8 @@ def distinct_fields():
     # return error_response
     if asset_type:
         db_result = asset.distinct_asset_fields(asset_type,
-                                                      params,
-                                                      distinct_key)
+                                                params,
+                                                distinct_key)
         if not db_result.get('success'):
             # DB Error
             return abell_error(db_result.get('error'),
@@ -207,12 +207,13 @@ def distinct_fields():
 # todo auth
 def update_assets():
     data = dict(request.get_json())
+    response_details = {}
     update_multiple = False
     validate_response = validate_data('update', data, ['update', 'filter'])
     if not validate_response.get('success'):
         return validate_response.get('error')
     # Get multi update flag AUTH AUTH AUHT
-    if request.args.get('update_multiple_assets', 'false').lower():
+    if request.args.get('update_multiple_assets', 'false').lower() == 'true':
         update_multiple = True
     asset_filter = data.get('filter')
     asset_update = data.get('update')
@@ -223,16 +224,21 @@ def update_assets():
     #   'Asset type is not found',
     #   type=object_type)
     # return error_response
-    if update_multiple:
-        test = asset.update_asset_values(asset_type,
-                                               asset_filter,
-                                               asset_update,
-                                               auth_level='admin',
-                                               multi=update_multiple)
-        #update many
+    response = asset.update_asset_values(asset_type,
+                                         asset_filter,
+                                         asset_update,
+                                         auth_level='admin',
+                                         multi=update_multiple)
+    if response.get('success'):
+        response_details.update({
+            'updated_asset_ids': response.get('updated_asset_ids'),
+            'message': response.get('message'),
+            'updated_keys': response.get('updated_keys')})
+        return abell_success(**response_details)
 
-
-    return abell_success(**data)
+    return abell_error(response.get('error', 500),
+                       response.get('message', 'Unknown update error.'),
+                       **asset_filter)
 
 
 @api.route('/v1/create', methods=['POST'])
@@ -264,7 +270,7 @@ def create_one_asset():
     # Create new keys if create_keys flag is set
     if request.args.get('create_keys', 'false').lower() == 'true':
         new_key_resp = asset.update_asset_type(data.keys(),
-                                                     abell_asset_info)
+                                               abell_asset_info)
         if not new_key_resp.get('success'):
             return abell_error(new_key_resp.get('error'),
                                new_key_resp.get('message'))
@@ -274,15 +280,11 @@ def create_one_asset():
 
     # Create new asset
     db_status = asset.create_new_asset(given_asset_type,
-                                             data, abell_asset_info)
-    if not db_status.get('success'):
-        return abell_error(db_status.get('error'),
-                           db_status.get('message'),
-                           **response_details)
-    else:
+                                       data, abell_asset_info)
+    if db_status.get('success'):
         response_details.update({'info': db_status.get('message')})
         return abell_success(**response_details)
 
-    return abell_error(500,
-                       'Unknown create error',
-                       submission=data)
+    return abell_error(db_status.get('error', 500),
+                       db_status.get('message', 'Unknown create error'),
+                       **response_details)

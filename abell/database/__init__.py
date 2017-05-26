@@ -79,12 +79,12 @@ class AbellDb(object):
                             specified_keys).batch_size(50)
                 response_dict.update(
                     {'success': True,
-                     'result': result})
+                     'result': list(result)})
             else:
                 result = mongo.db[asset_type].find(asset_filter).batch_size(50)
                 response_dict.update(
                     {'success': True,
-                     'result': result})
+                     'result': list(result)})
         except Exception as e:
             print(e)
             response_dict.update(
@@ -129,14 +129,21 @@ class AbellDb(object):
         return response_dict
 
     def update_asset(self, asset_type, asset_filter, update_dict):
-        result = 0
+        response_dict = {'success': False,
+                         'error': None,
+                         'message': None,
+                         'result': None}
         try:
-            print(update_dict)
-            result = mongo.db[asset_type].update_many(
-                        asset_filter,
-                        {'$set': update_dict})
-            print(result.raw_result)
+            result = mongo.db[asset_type].update_many(asset_filter,
+                                                      {'$set': update_dict})
+            if result.acknowledged:
+                response_dict['success'] = True
+                response_dict['result'] = '%s matched, %s modified' % (
+                                            result.matched_count,
+                                            result.modified_count)
         except Exception as e:
             print(e)
+            response_dict['error'] = 'DB update error'
+            return response_dict
 
-        return result
+        return response_dict
