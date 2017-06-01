@@ -1,6 +1,7 @@
 from functools import wraps
 from flask import request
 from ..api import api
+from abell.models import asset_type as AT
 from abell.models import asset
 from .responses import abell_error, abell_success
 
@@ -86,6 +87,159 @@ def get_query_params(request_args):
                                      'Error in filter params')
         response_dict['error'] = error_response
         return response_dict
+
+
+@api.route('/v1/asset_type', methods=['POST'])
+@validate_json
+def create_asset_type():
+    """Create new asset type
+
+    Handles the creation of a new asset type. Creates a new entry in the
+    assetinfo collection, as well as creating the collection for the actual
+    assets of the given type.
+    Args:
+        Takes a json formatted dict from the post which must contain the new
+        data type.
+        EX:{'type': 'server',
+            'managed_keys': [key1,key2],
+            'unmanaged_keys':[key3,key4]}
+    Returns:
+        Response dict: {'code': int, 'payload': null}
+    """
+    data = dict(request.get_json())
+    response_details = {}
+    valid_data = validate_data('create', data, ['type'])
+
+    if not valid_data.get('success'):
+        return valid_data.get('error')
+
+    new_asset_type = data.get('type')
+    managed_keys = data.get('managed_keys', [])
+    unmanaged_keys = data.get('unmanaged_keys', [])
+    if type(managed_keys) is not list or type(unmanaged_keys) is not list:
+        return abell_error(400,
+                           'managed_keys and unmanaged_keys must by lists')
+    new_asset_info = {'managed_keys': managed_keys,
+                      'unmanaged_keys': unmanaged_keys}
+
+    new_asset = AT.AbellAssetType(new_asset_type,
+                                  asset_info=new_asset_info)
+    result = new_asset.create_new_type()
+    if result.get('success'):
+        response_details.update(
+            {'info': 'Asset type %s created' % new_asset_type})
+        return abell_success(**response_details)
+    return abell_error(400, result.get('message', 'Asset type create error'))
+
+
+@api.route('/v1/asset_type', methods=['GET'])
+# todo auth
+def return_asset_info():
+    """Get asset info
+
+    Returns asset type information
+    Args:
+        takes type from arguments
+        EX: GET .../v1/asset_type?type=server
+    Returns:
+        Response dict: {'code': int, 'payload': dict, 'details': dict}
+    """
+    response_details = {}
+    validate_response = validate_data('asset_info', request.args,
+                                      ['type'])
+    if not validate_response.get('success'):
+        return validate_response.get('error')
+    asset_type = request.args.get('type')
+
+    abell_asset_type = AT.get_asset_type(asset_type)
+    if abell_asset_type:
+        return abell_success(payload=abell_asset_type.key_dict())
+
+    return abell_error(404,
+                       '%s asset type not found' % asset_type)
+
+
+@api.route('/v1/asset_type', methods=['PUT'])
+# todo auth
+def update_asset_type():
+    """Update asset info
+
+    Removes or adds keys to asset types. Also handles the mass update for new
+    or removed keys for all assets of that type.
+    Args:
+        Takes a json formatted dict from the post which must contain the new
+        data type.
+        EX:{'type': 'server',
+            'remove_keys': ['key5']
+            'managed_keys': ['key1','key2'],
+            'unmanaged_keys':['key3','key4']}
+    Returns:
+        Response dict: {'code': int, 'payload': null,
+                        'details': {'new keys': [],
+                                    'removed_keys': [],
+                                    'info': str}}
+    """
+    data = dict(request.get_json())
+    response_details = {}
+    valid_data = validate_data('update', data, ['type'])
+    if not valid_data.get('success'):
+        return valid_data.get('error')
+
+    asset_type = data.get('type')
+    abell_asset_type = AT.get_asset_type(asset_type)
+    if not abell_asset_type:
+        return abell_error(404,
+                           '%s asset type not found' % asset_type)
+
+    remove_keys = data.get('remove_keys', [])
+    managed_keys = data.get('managed_keys', [])
+    unmanaged_keys = data.get('unmanaged_keys', [])
+    if (type(managed_keys) is not list or
+       type(unmanaged_keys) is not list or
+       type(remove_keys) is not list):
+        return abell_error(400,
+                           'managed_keys, unmanaged_keys and remove_keys '
+                           'must by lists')
+    r = abell_asset_type.update_keys(remove_keys, managed_keys, unmanaged_keys)
+    if r.get('success'):
+        response_details.update({'info': 'Asset %s updated' % asset_type,
+                                 'removed_keys': r.get('removed_keys'),
+                                 'new_keys': r.get('new_keys')})
+        return abell_success(**response_details)
+    return abell_error(500,
+                       r.get('message', 'Asset update error'))
+
+
+@api.route('/v1/asset_type', methods=['DELETE'])
+# todo auth
+def delete_asset_type():
+    """Delete asset info
+
+    Deletes asset type from database. NOTE: All assets of that type must be
+    removed from the db before deleting type.
+    Args:
+        takes type from arguments
+        EX: DELETE .../v1/asset_type?type=server
+    Returns:
+        Response dict: {'code': int, 'payload': dict, 'details': dict}
+    """
+    response_details = {}
+    validate_response = validate_data('asset_info', request.args,
+                                      ['type'])
+    if not validate_response.get('success'):
+        return validate_response.get('error')
+    asset_type = request.args.get('type')
+    abell_asset_type = AT.get_asset_type(asset_type)
+    if not abell_asset_type:
+        return abell_error(404,
+                           '%s asset type not found' % asset_type)
+    r = abell_asset_type.remove_type()
+
+    if r.get('success'):
+        response_details.update({'info': 'Asset type %s deleted' % asset_type})
+        return abell_success(**response_details)
+    return abell_error(400,
+                       r.get('message', 'Asset type delete error'))
 
 
 @api.route('/v1/find', methods=['GET'])
@@ -218,6 +372,7 @@ def update_assets():
     asset_filter = data.get('filter')
     asset_update = data.get('update')
     asset_type = asset_filter.get('type')
+    # ensure TYPE
     # TODO(mike) Figure out Cache for allowed asset types
     # if object_type is not None and object_type not in ALLOWED_COLLECTIONS:
     # error_response = galaxy_error(404,
@@ -241,7 +396,40 @@ def update_assets():
                        **asset_filter)
 
 
-@api.route('/v1/create', methods=['POST'])
+@api.route('/v1/delete_asset', methods=['DELETE'])
+@validate_json
+def delete_assets():
+    data = dict(request.get_json())
+    response_details = {}
+    delete_multiple = False
+    valid_data = validate_data('delete', data,
+                               ['filter'])
+    if not valid_data.get('success'):
+        return valid_data.get('error')
+
+    # Check if multidelete
+    if request.args.get('multi_delete', 'false').lower() == 'true':
+        delete_multiple = True
+    asset_filter = data.get('filter')
+    asset_type = asset_filter.get('type')
+    if not asset_type:
+        return abell_error(400,
+                           'No asset type found in filter')
+    asset_response = asset.delete_assets(asset_type,
+                                         asset_filter,
+                                         auth_level='admin',
+                                         multi=delete_multiple)
+    if asset_response.get('success'):
+        response_details.update({
+            'deleted_asset_ids': asset_response.get('deleted_asset_ids'),
+            'message': asset_response.get('message')})
+        return abell_success(**response_details)
+    return abell_error(asset_response.get('error', 500),
+                       asset_response.get('message', 'Unknown delete error.'),
+                       **asset_filter)
+
+
+@api.route('/v1/create_asset', methods=['POST'])
 @validate_json
 # todo auth
 def create_one_asset():
@@ -258,8 +446,8 @@ def create_one_asset():
 
     # Ensure asset type exists
     given_asset_type = data.get('type')
-    abell_asset_info = asset.get_asset_type(given_asset_type)
-    if not abell_asset_info:
+    abell_asset_type = AT.get_asset_type(given_asset_type)
+    if not abell_asset_type:
         response_details.update({'submitted_data': data})
         return abell_error(400,
                            '%s asset type does not exist. Check submitted '
@@ -269,22 +457,21 @@ def create_one_asset():
 
     # Create new keys if create_keys flag is set
     if request.args.get('create_keys', 'false').lower() == 'true':
-        new_key_resp = asset.update_asset_type(data.keys(),
-                                               abell_asset_info)
-        if not new_key_resp.get('success'):
-            return abell_error(new_key_resp.get('error'),
-                               new_key_resp.get('message'))
-        new_keys_added = new_key_resp.get('message')
-        response_details.update({'new_keys_added': new_keys_added})
-        abell_asset_info = asset.get_asset_type(given_asset_type)
+        r = abell_asset_type.add_new_keys(data.keys())
+        if not r.get('success'):
+            return abell_error(r.get('error', 500),
+                               r.get('message', 'Error in asset create'))
+        new_keys = r.get('new_keys')
+        response_details.update({'new_keys_added': list(new_keys)})
 
     # Create new asset
-    db_status = asset.create_new_asset(given_asset_type,
-                                       data, abell_asset_info)
-    if db_status.get('success'):
-        response_details.update({'info': db_status.get('message')})
+    new_asset = asset.AbellAsset(given_asset_type, data.get('abell_id'),
+                                 data, abell_asset_type)
+    r = new_asset.create_asset()
+    if r.get('success'):
+        response_details.update({'info': r.get('message')})
         return abell_success(**response_details)
 
-    return abell_error(db_status.get('error', 500),
-                       db_status.get('message', 'Unknown create error'),
+    return abell_error(r.get('error', 500),
+                       r.get('message', 'Unknown create error'),
                        **response_details)

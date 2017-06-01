@@ -4,31 +4,13 @@ mongo = PyMongo()
 
 
 class AbellDb(object):
-    def get_asset_info(self, asset_type):
-        asset_info = mongo.db.assetinfo.find_one({'type': asset_type},
-                                                 {'_id': False})
-        return asset_info
-
-    def update_managed_vars(self, asset_type, new_vars):
-        mongo.db.assetinfo.update({'type': asset_type},
-                                  {'$addToSet': {'managed_keys':
-                                   {'$each': new_vars}}})
-
-    def add_new_key(self, asset_type, new_vars):
-        # adds new field to all assets of a given type
-        response_dict = {'success': False,
-                         'error': None,
-                         'message': None}
-
-        new_var_dict = dict((k, 'None') for k in new_vars)
+    def get_asset_type_info(self, asset_type):
+        response_dict = {'success': False}
         try:
-            resp = mongo.db[asset_type].update_many({},
-                                                    {'$set': new_var_dict})
-            if resp.acknowledged is True:
-                response_dict.update(
-                    {'success': True,
-                     'message': new_vars})
-                return response_dict
+            asset_info = mongo.db.assetinfo.find_one({'type': asset_type},
+                                                     {'_id': False})
+            response_dict.update({'success': True,
+                                  'result': asset_info})
         except Exception as e:
             response_dict.update(
                 {'error': 500,
@@ -36,17 +18,106 @@ class AbellDb(object):
             # (TODO) log error
             print(e)
             return response_dict
+        return response_dict
+
+    def update_managed_vars(self, asset_type, update_dict):
+        response_dict = {'success': False}
+        try:
+            mongo.db.assetinfo.update_one({'type': asset_type},
+                                          {'$set': update_dict})
+            response_dict.update({'success': True})
+        except Exception as e:
+            response_dict.update(
+                {'error': 500,
+                 'message': 'Error in managed keys update, contact admin'})
+            # (TODO) log error
+            print(e)
+            return response_dict
+        return response_dict
+
+    def update_asset_type(self, update_dict):
+        response_dict = {'success': False}
+        asset_type = update_dict.get('type')
+        try:
+            mongo.db.assetinfo.update_one({'type': asset_type},
+                                          {'$set': update_dict})
+            response_dict.update({'success': True})
+        except Exception as e:
+            response_dict.update(
+                {'error': 500,
+                 'message': 'Error in managed keys update, contact admin'})
+            # (TODO) log error
+            print(e)
+            return response_dict
+        return response_dict
+
+    def add_new_asset_type(self, initial_keys):
+        response_dict = {'success': False}
+        asset_type = initial_keys.get('type')
+        try:
+            resp = mongo.db.assetinfo.insert_one(initial_keys)
+            resp = mongo.db.create_collection(asset_type)
+            resp = mongo.db[asset_type].create_index('abell_id', unique=True)
+            response_dict.update({'success': True})
+            return response_dict
+        except Exception as e:
+            print(e)
+            return response_dict
+
+    def add_new_key_all_assets(self, asset_type, new_vars):
+        # adds new field to all assets of a given type
+        response_dict = {'success': False}
+
+        new_var_dict = dict((k, 'None') for k in new_vars)
+        try:
+            resp = mongo.db[asset_type].update_many({},
+                                                    {'$set': new_var_dict})
+            if resp.acknowledged is True:
+                response_dict.update({'success': True})
+                return response_dict
+            else:
+                response_dict.update({'error': 500,
+                                      'message':
+                                          'Unknown update all assets error'})
+        except Exception as e:
+            response_dict.update(
+                {'error': 500,
+                 'message': 'Unknown db error, contact admin'})
+            # (TODO) log error
+            print(e)
+        return response_dict
+
+    def delete_key_all_assets(self, asset_type, remove_keys):
+        response_dict = {'success': False}
+
+        remove_dict = dict((k, "") for k in remove_keys)
+        try:
+            resp = mongo.db[asset_type].update_many({},
+                                                    {'$unset': remove_dict})
+            if resp.acknowledged is True:
+                response_dict.update({'success': True})
+                return response_dict
+            else:
+                response_dict.update({'error': 500,
+                                      'message':
+                                          'Unknown update all assets error'})
+        except Exception as e:
+            response_dict.update(
+                {'error': 500,
+                 'message': 'Unknown db error, contact admin'})
+            # (TODO) log error
+            print(e)
+        return response_dict
 
     def add_new_asset(self, payload):
-        response_dict = {'success': False,
-                         'error': None,
-                         'message': None}
+        response_dict = {'success': False}
         asset_type = payload.get('type')
         abell_id = payload.get('abell_id')
-        if not asset_type:
+        if not asset_type or not abell_id:
             response_dict.update(
                 {'error': 400,
-                 'message': 'Did not recieve asset_type for insert'})
+                 'message':
+                    'Did not recieve asset_type or abell_id for insert'})
             return response_dict
         try:
             resp = mongo.db[asset_type].insert_one(payload)
@@ -93,10 +164,7 @@ class AbellDb(object):
         return response_dict
 
     def asset_count(self, asset_type, asset_filter):
-        response_dict = {'success': False,
-                         'error': None,
-                         'message': None,
-                         'result': None}
+        response_dict = {'success': False}
         try:
             result = mongo.db[asset_type].find(
                         asset_filter).count()
@@ -147,3 +215,36 @@ class AbellDb(object):
             return response_dict
 
         return response_dict
+
+    def delete_assets(self, asset_type, asset_filter):
+        response_dict = {'success': False}
+        try:
+            result = mongo.db[asset_type].delete_many(asset_filter)
+            if result.acknowledged:
+                response_dict['success'] = True
+        except Exception as e:
+            print(e)
+            response_dict['error'] = 'DB delete error'
+            return response_dict
+
+        return response_dict
+
+    def delete_asset_type(self, asset_type):
+        response_dict = {'success': False}
+        try:
+            mongo.db.drop_collection(asset_type)
+            result = mongo.db.assetinfo.delete_one({'type': asset_type})
+
+            if result.acknowledged:
+                response_dict['success'] = True
+        except Exception as e:
+            print(e)
+            response_dict['error'] = 'DB delete error'
+            return response_dict
+
+        return response_dict
+
+    def nuke_all_collections(self):
+        collections = mongo.db.collection_names()
+        for c in collections:
+            mongo.db.drop_collection(c)
