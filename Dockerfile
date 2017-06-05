@@ -1,4 +1,4 @@
-FROM python:2.7.13-alpine
+FROM python:3.5.3-alpine
 MAINTAINER Michael Porras
 
 ENV LANG en_US.UTF-8

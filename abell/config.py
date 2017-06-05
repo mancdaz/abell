@@ -22,4 +22,8 @@ class dev_config(base_config):
 class test_config(base_config):
     """Testing configuration options."""
     TESTING = True
-    WTF_CSRF_ENABLED = False
+    MONGO_HOST = os.environ.get('MONGO_HOST', '127.0.0.1')
+    MONGO_PORT = os.environ.get('MONGO_PORT', '27017')
+    MONGO_DBNAME = os.environ.get('MONGO_DBNAME', 'abell')
+    MONGO_USERNAME = os.environ.get('MONGO_USERNAME', 'abell')
+    MONGO_PASSWORD = os.environ.get('MONGO_PASSWORD', '123456')

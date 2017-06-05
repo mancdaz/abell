@@ -1,26 +1,25 @@
-version: '2'
+version: '3'
 
 services:
-  # app:
-  #   build: .
-  #   command: python -u manage.py runserver --host 0.0.0.0
-  #   volumes:
-  #     - .:/var/www/abell
-  #   ports:
-  #     - "5000:5000"
-  #   # links:
-  #   #   - db
-  #   network_mode: "host"
-  #   environment:
-  #     - PYTHONUNBUFFERED=0
-  #   # env_file: .env
+  app:
+    build: .
+    command: /bin/sh -c "python3 abell-db-setup.py && python3 -u manage.py runserver --host 0.0.0.0"
+    volumes:
+      - .:/var/www/abell
+    ports:
+      - "5000:5000"
+    network_mode: "host"
+    environment:
+      - PYTHONUNBUFFERED=0
+    depends_on: ["db"]
+    # env_file: .env
 
   db:
     image: mongo:latest
     ports:
       - "27017:27017"
-    command: --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
     volumes:
       - .:/tmp/abell
-
-# sudo docker exec -it abell_db_1 /bin/sh -c "mongo < /tmp/abell/mongoprovision.js"
