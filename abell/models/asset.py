@@ -8,27 +8,26 @@ ABELLDB = AbellDb()
 
 
 def update_asset_values(asset_type, asset_filter, user_update_dict,
-                        auth_level='user', multi=False):
+                        auth_level='user', multi=False, upsert=False):
     response_dict = {'success': False,
                      'error': None,
                      'message': None,
                      'updated_keys': {},
                      'updated_asset_ids': []}
-    asset_type_info = asset_type.get_asset_type(asset_type).get('result')
-    if not asset_type_info:
+    ato = AT.get_asset_type(asset_type)
+    if not ato:
         response_dict.update({'error': 404,
                               'message': 'Type %s not found.' % asset_type})
         return response_dict
 
     # TEMP Auth check, this will Change)
     if auth_level == 'admin':
-        valid_keys = set(asset_type_info.get('managed_keys') +
-                         asset_type_info.get('unmanaged_keys'))
+        valid_keys = ato.managed_keys.union(ato.unmanaged_keys)
         for k, v in user_update_dict.items():
             if k.split('.')[0] in valid_keys:
                 response_dict['updated_keys'][k] = v
     else:
-        valid_keys = set(asset_type_info.get('unmanaged_keys'))
+        valid_keys = ato.unmanaged_keys
         for k, v in user_update_dict.items():
             if k.split('.')[0] in valid_keys:
                 response_dict['updated_keys'][k] = v
@@ -41,6 +40,23 @@ def update_asset_values(asset_type, asset_filter, user_update_dict,
                         specified_keys={'_id': 0, 'abell_id': 1})
     assets_to_update = assets_to_update.get('result')
     if not multi:
+        # check for UPSERT if len is 0
+        if upsert and len(assets_to_update) is 0:
+            print('creating new asset')
+            new_asset = AbellAsset(ato.asset_type,
+                                   user_update_dict.get('abell_id'),
+                                   user_update_dict,
+                                   ato)
+            r = new_asset.insert_asset()
+            if r.get('success'):
+                response_dict.update({'success': True,
+                                      'new_assets': r.get('message')})
+                return response_dict
+            else:
+                response_dict.update({'error': 500,
+                                      'message': 'Error creating asset.'})
+                return response_dict
+
         if len(assets_to_update) is not 1:
             response_dict.update({'error': 400,
                                   'message': 'The filter did not return '
@@ -99,16 +115,16 @@ def asset_count(asset_type, params):
 class AbellAsset(object):
 
     def __init__(self, asset_type, abell_id, property_dict=None,
-                 asset_object=None):
-        if not asset_object:
-            asset_object = AT.get_asset_type(asset_type)
-        self.asset_object = asset_object
-        self.asset_type = asset_object.asset_type
+                 asset_type_object=None):
+        if not asset_type_object:
+            asset_type_object = AT.get_asset_type(asset_type)
+        self.asset_type_object = asset_type_object
+        self.asset_type = asset_type_object.asset_type
         self.abell_id = str(abell_id)
         self.fields = {}
-        self.create_fields()
+        self.__create_fields()
         if property_dict:
-            self.add_property_dict(property_dict)
+            self.update_keys(property_dict)
 
     def __getattr__(self, attr):
         if type(attr) == str:
@@ -119,22 +135,19 @@ class AbellAsset(object):
     def get_property(self, name):
         return getattr(self, name)
 
-    def create_fields(self):
+    def __create_fields(self):
         self.fields.update(dict.fromkeys(
-                    self.asset_object.system_keys, 'None'))
+                    self.asset_type_object.system_keys, 'None'))
         self.fields.update(dict.fromkeys(
-                    self.asset_object.managed_keys, 'None'))
+                    self.asset_type_object.managed_keys, 'None'))
         self.fields.update(dict.fromkeys(
-                    self.asset_object.unmanaged_keys, 'None'))
+                    self.asset_type_object.unmanaged_keys, 'None'))
 
-    def add_property_dict(self, property_dict):
+    def update_keys(self, property_dict):
         stringified_dict = model_tools.item_stringify(property_dict)
         for key, value in stringified_dict.items():
             if key in self.fields:
                 self.fields[key] = value
-        # for key, value in stringified_dict.iteritems():
-            # self.add_property(key, value)
-            # setattr(self, key, value)
 
     def stringified_attributes(self):
         return model_tools.item_stringify(self.fields)
@@ -145,7 +158,8 @@ class AbellAsset(object):
             return db_resp
         return {'success': False}
 
-    def create_asset(self):
+    def insert_asset(self):
+        # ensure all system keys are present
         r = self.__update_database('new_asset')
         return r
         # log

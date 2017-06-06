@@ -14,37 +14,6 @@ def get_asset_type(asset_type):
     return asset_type
 
 
-def add_keys_asset_type(data_keys, abell_asset_info):
-    """Add new fields to an asset type
-
-    Adds new fields to an abell asset type.
-    Args:
-        data_keys (list): List of user provided keys for updating
-        abell_asset_info (dict): Abell asset information dict
-    Returns:
-        dictionary Response dict: {'success': bool,
-                                  'error': None | abell_error,
-                                  'message': None | string}
-    """
-    response_dict = {'success': True,
-                     'message': 'No new keys added'}
-    asset_type = abell_asset_info.asset_type
-    given_keys = set(data_keys)
-    system_keys = abell_asset_info.system_keys
-    potential_keys = given_keys.difference(system_keys)
-    existing_keys = abell_asset_info.managed_keys.union(
-                        abell_asset_info.unmanaged_keys)
-
-    new_keys = potential_keys.difference(existing_keys)
-    if new_keys:
-        db_resp = ABELLDB.update_managed_vars(asset_type, list(new_keys))
-        if not db_resp.get('success'):
-            return db_resp
-        db_resp = ABELLDB.add_new_key_all_assets(asset_type, list(new_keys))
-        return db_resp
-    return response_dict
-
-
 class AbellAssetType(object):
     SYSTEM_KEYS = ['cloud', 'owner', 'type', 'abell_id']
 

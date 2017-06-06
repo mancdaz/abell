@@ -54,7 +54,7 @@ Managed and Unmanaged keys are for the abell admin to define, and can be updated
 
 ----------------------
 #### Creating an asset type
-Sending a dictionary with the following parameters will create an asset type  in Abell.
+Sending a dictionary with the following parameters will create an asset type  in abell.
 ###### Parameters:
 ```
 {"type": "asset_type",
@@ -90,8 +90,7 @@ type=asset_type
 
 ###### Example:
 ```
-curl -X GET \
-  'http://<abell_ip:5000>/api/v1/asset_type?type=server' \
+curl -X GET 'http://<abell_ip:5000>/api/v1/asset_type?type=server' \
   -H 'content-type: application/json'
 ```
 
@@ -126,7 +125,7 @@ This request will add, remove or swap fields for for an asset type.
 
 ###### Parameters:
 ```
-{"type": "asset_type",     		  # Required
+{"type": "asset_type",            # Required
 "remove_keys": ["Key1"],          # Optional
 "managed_keys": ["Key2"],         # Optional
 "unmanaged_keys": ["new_key"]}    # Optional
@@ -135,8 +134,7 @@ This request will add, remove or swap fields for for an asset type.
 ###### Example:
 This call will remove the "version" key from all assets of type server, add the key value pair "os": "None" to all server assets and swap notes and patches in the server asset type
 ```
-curl -X PUT \
-  http://<abell_ip:5000>/api/v1/asset_type \
+curl -X PUT http://<abell_ip:5000>/api/v1/asset_type \
   -H 'content-type: application/json' \
   -d '{"type": "server","remove_keys": ["version"], "managed_keys": ["os", "notes], "unmanaged_keys": ["patches"]
 }'
