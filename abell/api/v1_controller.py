@@ -242,7 +242,7 @@ def delete_asset_type():
                        r.get('message', 'Asset type delete error'))
 
 
-@api.route('/v1/find', methods=['GET'])
+@api.route('/v1/asset', methods=['GET'])
 # todo auth
 def find_assets():
     response_details = {}
@@ -255,12 +255,6 @@ def find_assets():
         specified_keys = query_params.get('specified_keys')
         response_details.update({'query_params': params})
     asset_type = params.get('type')
-    # TODO(mike) Figure out Cache for allowed asset types
-    # if object_type is not None and object_type not in ALLOWED_COLLECTIONS:
-    # error_response = galaxy_error(404,
-    #   'Asset type is not found',
-    #   type=object_type)
-    # return error_response
     if asset_type:
         db_result = asset.asset_find(asset_type,
                                      params,
@@ -281,7 +275,7 @@ def find_assets():
                        submission=query_params)
 
 
-@api.route('/v1/count', methods=['GET'])
+@api.route('/v1/asset/count', methods=['GET'])
 # todo auth
 def count_assets():
     response_details = {}
@@ -292,12 +286,6 @@ def count_assets():
         params = query_params.get('params')
         response_details.update({'query_params': params})
     asset_type = params.get('type')
-    # TODO(mike) Figure out Cache for allowed asset types
-    # if object_type is not None and object_type not in ALLOWED_COLLECTIONS:
-    # error_response = galaxy_error(404,
-    #   'Asset type is not found',
-    #   type=object_type)
-    # return error_response
     if asset_type:
         db_result = asset.asset_count(asset_type,
                                       params)
@@ -317,7 +305,7 @@ def count_assets():
                        submission=query_params)
 
 
-@api.route('/v1/distinct', methods=['GET'])
+@api.route('/v1/asset/distinct', methods=['GET'])
 # todo auth
 def distinct_fields():
     response_details = {}
@@ -330,12 +318,6 @@ def distinct_fields():
         response_details.update({'query_params': params,
                                  'distinct_key': distinct_key})
     asset_type = params.get('type')
-    # TODO(mike) Figure out Cache for allowed asset types
-    # if object_type is not None and object_type not in ALLOWED_COLLECTIONS:
-    # error_response = galaxy_error(404,
-    #   'Asset type is not found',
-    #   type=object_type)
-    # return error_response
     if asset_type:
         db_result = asset.distinct_asset_fields(asset_type,
                                                 params,
@@ -356,38 +338,44 @@ def distinct_fields():
                        submission=query_params)
 
 
-@api.route('/v1/update', methods=['PUT'])
+@api.route('/v1/asset', methods=['PUT'])
 @validate_json
 # todo auth
 def update_assets():
     data = dict(request.get_json())
     response_details = {}
     update_multiple = False
+    upsert = False
     validate_response = validate_data('update', data, ['update', 'filter'])
     if not validate_response.get('success'):
         return validate_response.get('error')
     # Get multi update flag AUTH AUTH AUHT
     if request.args.get('update_multiple_assets', 'false').lower() == 'true':
         update_multiple = True
+    if request.args.get('create_new_asset', 'false').lower() == 'true':
+        upsert = True
+        contains_sys_keys = validate_data('update', data.get('update'),
+                                          ['owner', 'cloud',
+                                           'type', 'abell_id'])
+        if not contains_sys_keys.get('success'):
+            return contains_sys_keys.get('error')
+    if upsert and update_multiple:
+        return abell_error(400,
+                           'Unable to create multiple new assets')
     asset_filter = data.get('filter')
     asset_update = data.get('update')
     asset_type = asset_filter.get('type')
-    # ensure TYPE
-    # TODO(mike) Figure out Cache for allowed asset types
-    # if object_type is not None and object_type not in ALLOWED_COLLECTIONS:
-    # error_response = galaxy_error(404,
-    #   'Asset type is not found',
-    #   type=object_type)
-    # return error_response
     response = asset.update_asset_values(asset_type,
                                          asset_filter,
                                          asset_update,
                                          auth_level='admin',
-                                         multi=update_multiple)
+                                         multi=update_multiple,
+                                         upsert=upsert)
     if response.get('success'):
         response_details.update({
             'updated_asset_ids': response.get('updated_asset_ids'),
             'message': response.get('message'),
+            'new_assets': response.get('new_assets'),
             'updated_keys': response.get('updated_keys')})
         return abell_success(**response_details)
 
@@ -396,7 +384,7 @@ def update_assets():
                        **asset_filter)
 
 
-@api.route('/v1/delete_asset', methods=['DELETE'])
+@api.route('/v1/asset', methods=['DELETE'])
 @validate_json
 def delete_assets():
     data = dict(request.get_json())
@@ -429,7 +417,7 @@ def delete_assets():
                        **asset_filter)
 
 
-@api.route('/v1/create_asset', methods=['POST'])
+@api.route('/v1/asset', methods=['POST'])
 @validate_json
 # todo auth
 def create_one_asset():
@@ -467,7 +455,7 @@ def create_one_asset():
     # Create new asset
     new_asset = asset.AbellAsset(given_asset_type, data.get('abell_id'),
                                  data, abell_asset_type)
-    r = new_asset.create_asset()
+    r = new_asset.insert_asset()
     if r.get('success'):
         response_details.update({'info': r.get('message')})
         return abell_success(**response_details)
