@@ -9,4 +9,6 @@ before_script:
   - pip install flake8
   - flake8
 
-script: tox
+script:
+  - tox
+  - python functional_tests.py

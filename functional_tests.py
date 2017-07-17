@@ -2,16 +2,17 @@ from abell import create_app
 from abell.config import test_config
 from abell.database import AbellDb
 import json
+# from faker import Factory
 
 import unittest
-from unittest import mock
+
+# fake = Factory.create()
 
 
 class BasicRunningTestCase(unittest.TestCase):
     def setUp(self):
-        with mock.patch('abell.mongo'):
-            app = create_app(test_config)
-            self.app = app.test_client()
+        app = create_app(test_config)
+        self.app = app.test_client()
 
     def tearDown(self):
         pass
@@ -25,17 +26,16 @@ class BasicRunningTestCase(unittest.TestCase):
 class CreateAssetTypeTestCase(unittest.TestCase):
     def setUp(self):
         # insert server type!
-        with mock.patch('abell.mongo'):
-            app = create_app(test_config)
-            self.app = app.test_client()
-            self.app_context = app.app_context()
-            self.app_context.push()
+        app = create_app(test_config)
+        self.app = app.test_client()
+        self.app_context = app.app_context()
+        self.app_context.push()
+        AbellDb().nuke_all_collections()
 
     def tearDown(self):
         self.app_context.pop()
 
-    @mock.patch('abell.database.mongo')
-    def test_asset_info_without_type(self, mock_mongo):
+    def test_asset_info_without_type(self):
         a = {'managed_keys': ['test'],
              'unmanaged_keys': ['test2']}
         r = self.app.post('/api/v1/asset_type',
@@ -43,65 +43,60 @@ class CreateAssetTypeTestCase(unittest.TestCase):
                           headers={'content-type': 'application/json'})
         self.assertEqual(r.status_code, 400)
 
-    @mock.patch('abell.models.asset_type.AbellAssetType')
-    def test_asset_create(self, mock_at):
-        mock_at.create_new_type.return_value = {'success': True}
-
+    def test_asset_create(self):
         a = {'type': 'server',
              'managed_keys': ['test'],
              'unmanaged_keys': ['test2']}
         r = self.app.post('/api/v1/asset_type',
                           data=json.dumps(a),
                           headers={'content-type': 'application/json'})
-        asset_type = a.pop('type')
-        mock_at.called_with(asset_type, a)
         self.assertEqual(r.status_code, 200)
 
-    @mock.patch('abell.models.asset_type.AbellAssetType')
-    def test_duplicate_asset_type_create(self, mock_at):
-        new_type = mock.Mock()
-        new_type.create_new_type.return_value = {'success': True}
-        # mock_at is called to create a new instance, which needs
-        # to return a Mock with the appropriate methods.
-        mock_at.return_value = new_type
+    def test_duplicate_asset_type_create(self):
         a = {'type': 'server',
              'managed_keys': ['test'],
              'unmanaged_keys': ['test2']}
         r = self.app.post('/api/v1/asset_type',
                           data=json.dumps(a),
                           headers={'content-type': 'application/json'})
-        new_type.create_new_type.return_value = {'success': False}
         r = self.app.post('/api/v1/asset_type',
                           data=json.dumps(a),
                           headers={'content-type': 'application/json'})
-        self.assertEqual(mock_at.call_count, 2)
         self.assertEqual(r.status_code, 400)
 
 
 class GetAssetTypeTestCase(unittest.TestCase):
     def setUp(self):
         # insert server type!
-        with mock.patch('abell.mongo'):
-            app = create_app(test_config)
-            self.app = app.test_client()
-            self.app_context = app.app_context()
-            self.app_context.push()
+        app = create_app(test_config)
+        self.app = app.test_client()
+        self.app_context = app.app_context()
+        self.app_context.push()
+        AbellDb().nuke_all_collections()
 
     def tearDown(self):
         self.app_context.pop()
 
-    @mock.patch('abell.models.asset_type.get_asset_type')
-    def test_asset_info_get(self, mock_get):
-        new_type = mock.Mock()
-        new_type.key_dict.return_value = {
-             'type': 'server',
+    def test_asset_info_get(self):
+        a = {'type': 'server',
              'managed_keys': ['test'],
              'unmanaged_keys': ['test2'],
-        }
-        mock_get.return_value = new_type
+             'system_keys': ['type', 'abell_id', 'cloud', 'owner']}
+        self.app.post('/api/v1/asset_type',
+                      data=json.dumps(a),
+                      headers={'content-type': 'application/json'})
         r = self.app.get('/api/v1/asset_type?type=server')
         payload = dict(json.loads(r.data.decode()).get('payload'))
         self.assertEqual('server', payload.get('type'))
+        if not (set(payload.get('managed_keys')) ==
+                set(a.get('managed_keys'))):
+            self.fail("managed_keys are not the same")
+        if not (set(payload.get('unmanaged_keys')) ==
+                set(a.get('unmanaged_keys'))):
+            self.fail("unmanaged_keys are not the same")
+        if not (set(payload.get('system_keys')) ==
+                set(a.get('system_keys'))):
+            self.fail("system_keys are not the same")
 
     def test_asset_info_get_nonexistent(self):
         r = self.app.get('/api/v1/asset_type?type=server')
@@ -111,11 +106,11 @@ class GetAssetTypeTestCase(unittest.TestCase):
 class DeleteAssetTypeTestCase(unittest.TestCase):
     def setUp(self):
         # insert server type!
-        with mock.patch('abell.mongo'):
-            app = create_app(test_config)
-            self.app = app.test_client()
-            self.app_context = app.app_context()
-            self.app_context.push()
+        app = create_app(test_config)
+        self.app = app.test_client()
+        self.app_context = app.app_context()
+        self.app_context.push()
+        AbellDb().nuke_all_collections()
 
     def tearDown(self):
         self.app_context.pop()
@@ -125,15 +120,13 @@ class DeleteAssetTypeTestCase(unittest.TestCase):
         r = self.app.delete('/api/v1/asset_type?type=server')
         self.assertEqual(r.status_code, 404)
 
-    @mock.patch('abell.models.asset_type.get_asset_type')
-    def test_asset_delete(self, mock_get):
+    def test_asset_delete(self):
         a = {'type': 'server'}
-        mock_type = mock.Mock()
-        mock_type.remove_type.return_value = {'success': True}
-        mock_get.return_value = mock_type
+        r = self.app.post('/api/v1/asset_type',
+                          data=json.dumps(a),
+                          headers={'content-type': 'application/json'})
         r = self.app.delete('/api/v1/asset_type?type=server')
         self.assertEqual(r.status_code, 200)
-        mock_get.return_value = None
         r = self.app.get('/api/v1/asset_type?type=server')
         self.assertEqual(r.status_code, 404)
         # TODO Test for asset existence block
@@ -142,41 +135,16 @@ class DeleteAssetTypeTestCase(unittest.TestCase):
 class UpdateAssetTypeTestCase(unittest.TestCase):
     def setUp(self):
         # insert server type!
-        with mock.patch('abell.mongo'):
-            app = create_app(test_config)
-            self.app = app.test_client()
-            self.app_context = app.app_context()
-            self.app_context.push()
+        app = create_app(test_config)
+        self.app = app.test_client()
+        self.app_context = app.app_context()
+        self.app_context.push()
+        AbellDb().nuke_all_collections()
 
     def tearDown(self):
         self.app_context.pop()
 
-    @mock.patch('abell.models.asset_type.get_asset_type')
-    def test_asset_type_delete_keys(self, mock_get):
-        mock_type = mock.Mock()
-        mock_type.update_keys.return_value = {'success': True,
-                                              'removed_keys': ['test'],
-                                              'new_keys': []
-                                             }
-        mock_get.return_value = mock_type
-        u = {'type': 'server',
-             'remove_keys': ['test']}
-        r = self.app.put('/api/v1/asset_type',
-                         data=json.dumps(u),
-                         headers={'content-type': 'application/json'})
-        self.assertEqual(r.status_code, 200)
-        mock_type.update_keys.assert_called_with(['test'], [], [])
-        # test that its been removed from assets
-
-    @mock.patch('abell.models.asset_type.AbellAssetType')
-    def test_asset_type_swap_keys(self, mock_at):
-        # TODO: This test needs to be revisited; it seems that we should be using PUT
-        # to modify the asset type vs post...
-        mock_type = mock.Mock()
-        mock_type.return_value = mock.Mock()
-        mock_type.return_value.create_new_type.return_value = {'success': True}
-        mock_create = mock_type.return_value.create_new_type
-        mock_at.return_value = mock_type
+    def test_asset_type_delete_keys(self):
         a = {'type': 'server',
              'managed_keys': ['test'],
              'unmanaged_keys': ['test2']}
@@ -184,25 +152,58 @@ class UpdateAssetTypeTestCase(unittest.TestCase):
                           data=json.dumps(a),
                           headers={'content-type': 'application/json'})
         self.assertEqual(r.status_code, 200)
-        a.pop('type')
-        mock_at.assert_called_with('server', asset_info=a)
+        u = {'type': 'server',
+             'remove_keys': ['test']}
+        r = self.app.put('/api/v1/asset_type',
+                         data=json.dumps(u),
+                         headers={'content-type': 'application/json'})
+        self.assertEqual(r.status_code, 200)
+        r = self.app.get('/api/v1/asset_type?type=server')
+        payload = dict(json.loads(r.data.decode()).get('payload'))
+        self.assertEqual(payload.get('managed_keys'), [])
         # test that its been removed from assets
 
-    @mock.patch('abell.models.asset_type.get_asset_type')
-    def test_asset_type_add_key(self, mock_get):
-        mock_type = mock.Mock()
-        mock_type.update_keys.return_value = {'success': True,
-                                              'removed_keys': [],
-                                              'new_keys': ['test3']
-                                             }
-        mock_get.return_value = mock_type
+    def test_asset_type_swap_keys(self):
+        a = {'type': 'server',
+             'managed_keys': ['test'],
+             'unmanaged_keys': ['test2']}
+        r = self.app.post('/api/v1/asset_type',
+                          data=json.dumps(a),
+                          headers={'content-type': 'application/json'})
+        self.assertEqual(r.status_code, 200)
+        u = {'type': 'server',
+             'managed_keys': ['test2'],
+             'unmanaged_keys': ['test']}
+        r = self.app.put('/api/v1/asset_type',
+                         data=json.dumps(u),
+                         headers={'content-type': 'application/json'})
+        self.assertEqual(r.status_code, 200)
+        r = self.app.get('/api/v1/asset_type?type=server')
+        payload = dict(json.loads(r.data.decode()).get('payload'))
+        self.assertEqual(payload.get('managed_keys'), ['test2'])
+        self.assertEqual(payload.get('unmanaged_keys'), ['test'])
+        # test that its been removed from assets
+
+    def test_asset_type_add_key(self):
+        a = {'type': 'server',
+             'managed_keys': ['test'],
+             'unmanaged_keys': ['test2']}
+        r = self.app.post('/api/v1/asset_type',
+                          data=json.dumps(a),
+                          headers={'content-type': 'application/json'})
+        self.assertEqual(r.status_code, 200)
         u = {'type': 'server',
              'managed_keys': ['test3']}
         r = self.app.put('/api/v1/asset_type',
                          data=json.dumps(u),
                          headers={'content-type': 'application/json'})
         self.assertEqual(r.status_code, 200)
-        mock_type.update_keys.assert_called_with([], ['test3'], [])
+        r = self.app.get('/api/v1/asset_type?type=server')
+        payload = dict(json.loads(r.data.decode()).get('payload'))
+        if not (set(payload.get('managed_keys')) ==
+                set(['test', 'test3'])):
+            self.fail("New managed key was not added")
+        # test that its been updated from assets
 
 
 if __name__ == '__main__':
