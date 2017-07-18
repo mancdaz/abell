@@ -10,6 +10,7 @@ services:
 
 before_script:
   - pip install tox
+  - python abell-db-setup.py
 
 script:
   - tox
