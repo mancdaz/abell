@@ -1,6 +1,5 @@
 from abell import create_app
 from abell.config import test_config
-from abell.database import AbellDb
 import json
 
 import unittest
@@ -121,13 +120,11 @@ class DeleteAssetTypeTestCase(unittest.TestCase):
         self.app_context.pop()
 
     def test_asset_delete_nonexistent(self):
-        a = {'type': 'server'}
         r = self.app.delete('/api/v1/asset_type?type=server')
         self.assertEqual(r.status_code, 404)
 
     @mock.patch('abell.models.asset_type.get_asset_type')
     def test_asset_delete(self, mock_get):
-        a = {'type': 'server'}
         mock_type = mock.Mock()
         mock_type.remove_type.return_value = {'success': True}
         mock_get.return_value = mock_type
@@ -157,7 +154,7 @@ class UpdateAssetTypeTestCase(unittest.TestCase):
         mock_type.update_keys.return_value = {'success': True,
                                               'removed_keys': ['test'],
                                               'new_keys': []
-                                             }
+                                              }
         mock_get.return_value = mock_type
         u = {'type': 'server',
              'remove_keys': ['test']}
@@ -170,12 +167,11 @@ class UpdateAssetTypeTestCase(unittest.TestCase):
 
     @mock.patch('abell.models.asset_type.AbellAssetType')
     def test_asset_type_swap_keys(self, mock_at):
-        # TODO: This test needs to be revisited; it seems that we should be using PUT
-        # to modify the asset type vs post...
+        # TODO: This test needs to be revisited; it seems that we
+        # should be using PUT to modify the asset type vs post...
         mock_type = mock.Mock()
         mock_type.return_value = mock.Mock()
         mock_type.return_value.create_new_type.return_value = {'success': True}
-        mock_create = mock_type.return_value.create_new_type
         mock_at.return_value = mock_type
         a = {'type': 'server',
              'managed_keys': ['test'],
@@ -194,7 +190,7 @@ class UpdateAssetTypeTestCase(unittest.TestCase):
         mock_type.update_keys.return_value = {'success': True,
                                               'removed_keys': [],
                                               'new_keys': ['test3']
-                                             }
+                                              }
         mock_get.return_value = mock_type
         u = {'type': 'server',
              'managed_keys': ['test3']}

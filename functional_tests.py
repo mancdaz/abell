@@ -116,7 +116,6 @@ class DeleteAssetTypeTestCase(unittest.TestCase):
         self.app_context.pop()
 
     def test_asset_delete_nonexistent(self):
-        a = {'type': 'server'}
         r = self.app.delete('/api/v1/asset_type?type=server')
         self.assertEqual(r.status_code, 404)
 

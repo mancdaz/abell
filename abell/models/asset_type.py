@@ -1,4 +1,3 @@
-from abell.models import model_tools
 from abell.database import AbellDb
 
 
