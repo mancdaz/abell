@@ -5,6 +5,9 @@ cache: pip
 services:
   - mongodb
 
+before_script:
+  - pip install tox
+
 script:
   - tox
   - python functional_tests.py
