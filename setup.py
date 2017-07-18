@@ -5,4 +5,5 @@ setup(
     description="Centralized configuration storage",
     author="Abell Contributors",
     packages=['abell'],
+    zip_safe=False,
 )
