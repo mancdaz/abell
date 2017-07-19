@@ -10,7 +10,7 @@ services:
 
 before_script:
   - pip install tox
-  - mongo abell --eval 'use admin; db.createUser({user: "admin", password:"password", roles:["userAdminAnyDatabase"]});'
+  - ./bootstrap_mongodb.sh
   - python abell-db-setup.py
 
 script:
