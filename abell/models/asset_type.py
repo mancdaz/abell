@@ -16,7 +16,9 @@ def get_asset_type(asset_type):
 class AbellAssetType(object):
     SYSTEM_KEYS = ['cloud', 'owner', 'type', 'abell_id']
 
-    def __init__(self, asset_type, asset_info={}):
+    def __init__(self, asset_type, asset_info=None):
+        if asset_info is None:
+            asset_info = {}
         self.asset_type = asset_type
         self.managed_keys = set(asset_info.get('managed_keys', []))
         self.unmanaged_keys = set(asset_info.get('unmanaged_keys', []))
@@ -72,7 +74,9 @@ class AbellAssetType(object):
 
         return {'success': False}
 
-    def add_new_keys(self, new_keys=[]):
+    def add_new_keys(self, new_keys=None):
+        if new_keys is None:
+            new_keys = []
         given_keys = set(new_keys)
         all_keys = self.unmanaged_keys.union(self.managed_keys)
         all_keys.update(self.system_keys)
@@ -85,8 +89,12 @@ class AbellAssetType(object):
             return {'success': True, 'new_keys': new_keys}
         return r
 
-    def create_new_type(self, managed_keys=[], unmanaged_keys=[]):
+    def create_new_type(self, managed_keys=None, unmanaged_keys=None):
         # check if type exists
+        if managed_keys is None:
+            managed_keys = []
+        if unmanaged_keys is None:
+            unmanaged_keys = []
         type_check = get_asset_type(self.asset_type)
         if type_check:
             return {'success': False,
@@ -112,7 +120,14 @@ class AbellAssetType(object):
                 'DB. Remove all assets of type %s then '
                 'resubmit this call' % self.asset_type}
 
-    def update_keys(self, remove_keys=[], managed_keys=[], unmanaged_keys=[]):
+    def update_keys(self, remove_keys=None, managed_keys=None,
+                    unmanaged_keys=None):
+        if remove_keys is None:
+            remove_keys = []
+        if managed_keys is None:
+            managed_keys = []
+        if unmanaged_keys is None:
+            unmanaged_keys = []
         all_removed_keys = set([])
         all_new_keys = set([])
 
