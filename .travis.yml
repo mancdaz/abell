@@ -1,19 +1,18 @@
 language: python
+python:
+    - "3.5"
+
 sudo: false
 cache: pip
-
-python:
-  - "3.5"
 
 services:
   - mongodb
 
-before_istall:
-  - pip install flake8
-  - flake8
-
-install:
-  - pip install -r requirements.txt
+before_script:
+  - pip install tox
+  - ./bootstrap_mongodb.sh
+  - python abell-db-setup.py
 
 script:
-  - python tests.py
+  - tox
+  - python functional_tests.py

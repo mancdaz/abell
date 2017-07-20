@@ -144,7 +144,6 @@ def return_asset_info():
     Returns:
         Response dict: {'code': int, 'payload': dict, 'details': dict}
     """
-    response_details = {}
     validate_response = validate_data('asset_info', request.args,
                                       ['type'])
     if not validate_response.get('success'):

@@ -55,9 +55,9 @@ class AbellDb(object):
         response_dict = {'success': False}
         asset_type = initial_keys.get('type')
         try:
-            resp = mongo.db.assetinfo.insert_one(initial_keys)
-            resp = mongo.db.create_collection(asset_type)
-            resp = mongo.db[asset_type].create_index('abell_id', unique=True)
+            mongo.db.assetinfo.insert_one(initial_keys)
+            mongo.db.create_collection(asset_type)
+            mongo.db[asset_type].create_index('abell_id', unique=True)
             response_dict.update({'success': True})
             return response_dict
         except Exception as e:
