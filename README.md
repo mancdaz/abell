@@ -11,7 +11,7 @@ cd into the top abell directory and run:
 
 ```
   $ sudo docker-compose build
-  $ sudo docker-compose up
+  $ sudo docker-compose up -d
 ```
 This will launch 2 containers and look something like this:
 
@@ -22,6 +22,19 @@ CONTAINER ID        IMAGE               COMMAND                  CREATED        
 d2794defee41        mongo:latest        "docker-entrypoint..."   53 seconds ago      Up 51 seconds       0.0.0.0:27017->27017/tcp   abell_db_1
 ```
 
+Installing with RPC-O/OSA
+-------------------------
+
+For development purposes, it is possible to run Abell on an AIO. This can be done by following the Docker instructions above on the AIO host machine.
+
+Abell will be started on localhost:5000, and will not intefere with the rest of the AIO. However, it is not currently integrated with or managed by RPC-O/OSA's playbooks.
+
+Installing manually
+-------------------
+
+If you would like to run Abell manually, you must first prepare a local MongoDB database with an admin user.
+
+Installing MongoDB is outside the scope of this document, however the user can be created with the `bootstrap_mongodb.sh` script.
 
 Usage
 ---
