@@ -24,6 +24,14 @@ class AbellClient(requests.Session):
         resp = self.get(endpoint, params=params)
         return resp.json()
 
+    def create_asset_type(self, type_name, managed_keys=None,
+                          unmanaged_keys=None):
+        endpoint = "{api_uri}/asset_type".format(api_uri=self.uri)
+        params = {'type': type_name, 'managed_keys': managed_keys,
+                  'unmanaged_keys': unmanaged_keys}
+        resp = self.post(endpoint, params=params)
+        return resp.json()
+
     def get_asset(self):
         pass
 

@@ -55,6 +55,18 @@ class TestAbellClient(unittest.TestCase):
 
         self.assertEqual(response, data)
 
+    def test_create_server_type(self):
+        """Tests making a basic server asset type."""
+        cli = client.AbellClient(ABELL_URI)
+        self._attach_mock(cli)
+        ret_data = {'code': 200, 'payload': None,
+                    'details': {'info': 'Asset type server created'}}
+        self._mock_response('POST', 'asset_type?type=server', ret_data)
+
+        response = cli.create_asset_type('server', ['versions', 'patches'],
+                                         ['notes'])
+        self.assertEqual(response, ret_data)
+
 
 if __name__ == '__main__':
     unittest.main()
