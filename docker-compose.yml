@@ -7,7 +7,7 @@ services:
     volumes:
       - .:/var/www/abell
     ports:
-      - "5000:5000"
+      - "6000:6000"
     network_mode: "host"
     environment:
       - PYTHONUNBUFFERED=0
