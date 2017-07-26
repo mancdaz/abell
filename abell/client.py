@@ -7,17 +7,15 @@ ABELL_VERSION = 'v1'
 format_tmpl = 'http://{ip}:{port}/{api_path}/{version}'
 ABELL_URI = format_tmpl.format(ip=ABELL_IP,
                                port=ABELL_PORT,
-                               path=ABELL_PATH,
+                               api_path=ABELL_PATH,
                                version=ABELL_VERSION)
 
 
 class AbellClient(requests.Session):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self.uri = ABELL_URI
         self.headers = {'content-type': 'application/json'}
-
-    def get(self, *args, **kwargs):
-        super(AbellClient).get(*args, **kwargs, headers=self.headers)
+        super(AbellClient, self).__init__(*args, **kwargs)
 
     def get_asset_type(self, type_name, managed_keys=None,
                        unmanaged_keys=None):
