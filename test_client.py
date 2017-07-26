@@ -6,6 +6,9 @@ import unittest
 from unittest import mock
 
 
+ABELL_URI = 'http://localhost:5000/api/v1'
+
+
 class TestAbellClient(unittest.TestCase):
     def setUp(self):
         pass
@@ -25,12 +28,16 @@ class TestAbellClient(unittest.TestCase):
         self.adapter.register_uri(method, '/api/v1/' + path, json=return_data)
 
     def test_creation(self):
-        c = client.AbellClient()
+        c = client.AbellClient(ABELL_URI)
         self.assertIsInstance(c, requests.Session)
+
+    def test_get_client_uri_building(self):
+        c = client.get_client('localhost', '5000', 'api', 'v1')
+        self.assertEqual(ABELL_URI, c.uri)
 
     def test_basic_get_asset_type(self):
         """Confirm that the `get` functions recieves the args we expected"""
-        c = client.AbellClient()
+        c = client.AbellClient(ABELL_URI)
         c.get = mock.Mock()
         c.get_asset_type('server')
         expected_params = {'type': 'server', 'managed_keys': None,
@@ -39,7 +46,7 @@ class TestAbellClient(unittest.TestCase):
                                  params=expected_params)
 
     def test_get_asset_type(self):
-        cli = client.AbellClient()
+        cli = client.AbellClient(ABELL_URI)
         self._attach_mock(cli)
         data = {'code': 200, 'payload': {'type': 'server'}}
         self._mock_response('GET', 'asset_type?type=server', data)

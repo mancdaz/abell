@@ -1,19 +1,18 @@
 import requests
 
-ABELL_IP = 'localhost'
-ABELL_PORT = '5000'
-ABELL_PATH = 'api'
-ABELL_VERSION = 'v1'
-format_tmpl = 'http://{ip}:{port}/{api_path}/{version}'
-ABELL_URI = format_tmpl.format(ip=ABELL_IP,
-                               port=ABELL_PORT,
-                               api_path=ABELL_PATH,
-                               version=ABELL_VERSION)
+
+def get_client(host, port, path, version):
+    format_tmpl = 'http://{host}:{port}/{api_path}/{version}'
+    uri = format_tmpl.format(host=host,
+                             port=port,
+                             api_path=path,
+                             version=version)
+    return AbellClient(uri)
 
 
 class AbellClient(requests.Session):
-    def __init__(self, *args, **kwargs):
-        self.uri = ABELL_URI
+    def __init__(self, uri, *args, **kwargs):
+        self.uri = uri
         self.headers = {'content-type': 'application/json'}
         super(AbellClient, self).__init__(*args, **kwargs)
 
