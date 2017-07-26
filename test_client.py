@@ -11,12 +11,18 @@ class TestAbellClient(unittest.TestCase):
         pass
 
     def tearDown(self):
-        pass
+        try:
+            # If any test used the mocking adapter, remove it.
+            self.__dict__.pop('adapter')
+        except KeyError:
+            pass
 
-    def _attach_mock(self, client):
-        adapter = requests_mock.Adapter()
-        adapter.register_uri('GET', 'http://localhost:5000/api/v1/asset_type')
-        client.mount('mock', adapter)
+    def _attach_mock(self, cli):
+        self.adapter = requests_mock.Adapter()
+        cli.mount('http://localhost:5000/', self.adapter)
+
+    def _mock_response(self, method, path, return_data):
+        self.adapter.register_uri(method, '/api/v1/' + path, json=return_data)
 
     def test_creation(self):
         c = client.AbellClient()
@@ -31,6 +37,16 @@ class TestAbellClient(unittest.TestCase):
                            'unmanaged_keys': None}
         c.get.assert_called_with('http://localhost:5000/api/v1/asset_type',
                                  params=expected_params)
+
+    def test_get_asset_type(self):
+        cli = client.AbellClient()
+        self._attach_mock(cli)
+        data = {'code': 200, 'payload': {'type': 'server'}}
+        self._mock_response('GET', 'asset_type?type=server', data)
+
+        response = cli.get_asset_type('server')
+
+        self.assertEqual(response, data)
 
 
 if __name__ == '__main__':
