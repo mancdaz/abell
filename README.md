@@ -1,6 +1,8 @@
 Abell
 ===
 
+[![Build Status](https://travis-ci.org/rcbops/abell.svg?branch=master)](https://github.com/rcbops/abell)
+
 A distributed dynamic inventory system.
 
 Installing with Docker
