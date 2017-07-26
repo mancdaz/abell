@@ -9,7 +9,7 @@ def _make_context():
 app = create_app(config=config.dev_config)
 
 manager = Manager(app)
-manager.add_command('runserver', Server())
+manager.add_command('runserver', Server(host="0.0.0.0", port=6000))
 manager.add_command('shell', Shell(make_context=_make_context))
 
 

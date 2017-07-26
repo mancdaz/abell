@@ -27,7 +27,7 @@ Installing with RPC-O/OSA
 
 For development purposes, it is possible to run Abell on an AIO. This can be done by following the Docker instructions above on the AIO host machine.
 
-Abell will be started on localhost:5000, and will not intefere with the rest of the AIO. However, it is not currently integrated with or managed by RPC-O/OSA's playbooks.
+Abell will be started on localhost:6000, and will not intefere with the rest of the AIO. However, it is not currently integrated with or managed by RPC-O/OSA's playbooks.
 
 Installing manually
 -------------------
@@ -77,7 +77,7 @@ Sending a dictionary with the following parameters will create an asset type  in
 
 ###### Example:
 ```
-curl -X POST http://<abell_ip:5000>/api/v1/asset_type \
+curl -X POST http://<abell_ip:6000>/api/v1/asset_type \
   -H 'content-type: application/json' \
   -d '{"type": "server", "managed_keys": ["version", "patches"], "unmanaged_keys": ["notes"]}'
 ```
@@ -103,7 +103,7 @@ type=asset_type
 
 ###### Example:
 ```
-curl -X GET 'http://<abell_ip:5000>/api/v1/asset_type?type=server' \
+curl -X GET 'http://<abell_ip:6000>/api/v1/asset_type?type=server' \
   -H 'content-type: application/json'
 ```
 
@@ -147,7 +147,7 @@ This request will add, remove or swap fields for for an asset type.
 ###### Example:
 This call will remove the "version" key from all assets of type server, add the key value pair "os": "None" to all server assets and swap notes and patches in the server asset type
 ```
-curl -X PUT http://<abell_ip:5000>/api/v1/asset_type \
+curl -X PUT http://<abell_ip:6000>/api/v1/asset_type \
   -H 'content-type: application/json' \
   -d '{"type": "server","remove_keys": ["version"], "managed_keys": ["os", "notes], "unmanaged_keys": ["patches"]
 }'
@@ -180,7 +180,7 @@ type=asset_type
 
 ###### Example:
 ```
-curl -X DELETE 'http://<abell_ip:5000>/api/v1/asset_type?type=server' \
+curl -X DELETE 'http://<abell_ip:6000>/api/v1/asset_type?type=server' \
   -H 'content-type: application/json'
 ```
 
